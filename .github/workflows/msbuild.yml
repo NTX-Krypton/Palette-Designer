@@ -1,0 +1,74 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: MSBuild
+
+on:
+  push:
+    tags: ['*']
+  workflow_dispatch:
+
+env:
+  # Path to the solution file relative to the root of the project.
+  SOLUTION_FILE_PATH: Palette Designer.csproj
+
+  # Files to release after build
+  RELEASE_FILES: dist/PaletteDesigner.exe dist/ComponentFactory.Krypton.Toolkit.dll dist/ComponentFactory.Krypton.Navigator.dll dist/ComponentFactory.Krypton.Ribbon.dll
+
+  # Configuration type to build.
+  # You can convert this to a build matrix if you need coverage of multiple configuration types.
+  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+  BUILD_CONFIGURATION: Release
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v6
+
+    - name: Fetch dependency NTX-Krypton/Toolkit
+      uses: foxtrotperry/fetch-file-action@v0-alpha
+      with:
+        url: 'https://github.com/NTX-Krypton/Toolkit/releases/latest/download/ComponentFactory.Krypton.Toolkit.dll'
+        path: ${{github.workspace}}
+        filename: 'ComponentFactory.Krypton.Toolkit.dll'
+
+    - name: Fetch dependency NTX-Krypton/Navigator
+      uses: foxtrotperry/fetch-file-action@v0-alpha
+      with:
+        url: 'https://github.com/NTX-Krypton/Navigator/releases/latest/download/ComponentFactory.Krypton.Navigator.dll'
+        path: ${{github.workspace}}
+        filename: 'ComponentFactory.Krypton.Navigator.dll'
+
+    - name: Fetch dependency NTX-Krypton/Navigator
+      uses: foxtrotperry/fetch-file-action@v0-alpha
+      with:
+        url: 'https://github.com/NTX-Krypton/Ribbon/releases/latest/download/ComponentFactory.Krypton.Ribbon.dll'
+        path: ${{github.workspace}}
+        filename: 'ComponentFactory.Krypton.Ribbon.dll'
+  
+    - name: Configure MSBuild
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Build
+      working-directory: ${{github.workspace}}
+      # Add additional options to the MSBuild command line here (like platform or verbosity level).
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: 'msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} "${{env.SOLUTION_FILE_PATH}}"'
+
+    - uses: vimtor/action-zip@v1.2
+      with:
+        files: ${{env.RELEASE_FILES}}
+        dest: KryptonPaletteDesigner.zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: KryptonPaletteDesigner.zip
